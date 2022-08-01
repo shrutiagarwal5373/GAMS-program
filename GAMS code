@@ -1,0 +1,54 @@
+set i 'facility'/1*5/;
+set j 'floor'/1*5/;
+set k 'slot'/1*5/;
+set T 'period number'/1*5/;
+parameter D(j1,k1,j2,k2) distance between slots at respective floors
+$call GDXXRW gams1.xlsx par=cap rng=Sheet1!a2:b6 cdim=0 rdim=1
+$GDXIN gams1.gdx
+$Load D
+$GDXIN
+parameter F(i1,i2,t) Flow between facilities in given time
+$call GDXXRW gams1.xlsx par=d rng=Sheet1!a9:b13 cdim=0 rdim=1
+$GDXIN gams1.gdx
+$Load F
+$GDXIN
+parameter A(i1,t1,j1,k1,t1+1,j2,k2,t1,i2,j2,k2) Cost of relocation of facilities
+$call GDXXRW gams1.xlsx par=f rng=Sheet1!a16:b20 cdim=0 rdim=1
+$GDXIN gams1.gdx
+$Load A
+$GDXIN
+variable
+Y(i,k,t) Binary variable to define the location of facility on slot in time
+W(i,j,k,t) Binary variable to define the location of facility on floor at slot in time
+X(i,j,t) Binary variable to define the location of facility on floor in time
+Z1(t,i1,j1,k1,i2,j2,k2) Binary variable for linearisation
+Z2(t1,i1,j1,k1,t1+1,j2,k2,t1,i2,j2,k2) Binary variable for linearisation
+;
+binary variable Y,W,X,Z1,Z2 ;
+Equations
+Objfn Objective function
+strong_constr strong linking constr
+constr1 constraint 1
+constr2 constraint 2
+constr3 constraint 3
+constr4 constraint 4
+constr5 constraint 5
+;
+Objfn.. A =e= sum(i1 NE i2 and (j1,k1) NE (j2,k2), t1), 
+X(i1,j1,t1)*Y(i1,k1,t1)*X(i2,j2,t1)*Y(i2,k2)*
+ F(i1,i2,t1)*D(j1,k1, j2,k2) + A(i1,t1,j1,k1,t1+1,j2,k2,t1,i2,j2,k2)*
+ X(i1,j1,t1)*Y(i1,k1,t1)*X(i1,j2,t1+1)*Y(i1,k2,t1+1)*
+ X(i2,j2,t1)*Y(i2,k2,t1);
+strong_constr(i,j,t).. 1 =e= sum((j), X(i,j,t));
+constr1(i,j,t).. J =e= sum((i), X(i,j,t));
+constr2(i,k,t).. 1 =e= sum((k), Y(i,k,t));
+constr3(i,k,t).. K =e= sum((i), Y(i,k,t));
+constr4.. Z1(t1,i1,j1,k1,i2,j2,k2) + M*(4 -
+(X(i1,j1,t1)+Y(i1,k1,t1)+X(i2,j2,t1)+Y(i2,k2,t1))) =g= 1
+constr5.. Z2(t1,i1,j1,k1,t1+1,j2,k2,t1,i2,j2,k2) + M*(6 -
+(X(i1,j1,t1)+Y(i1,k1,t1)+X(i1,j2,t1+1)+Y(i1,k2,t1+1) + X(i2,j2,t1)+Y(i2,k2,t1))) =g= 1
+model project1 /Objfn, strong_constr, constr1, constr2, constr3, constr4, constr5 /;
+solve project1 Minimising the cost of relocation;
+display A.L
+Footer
+© 2022 GitHub, Inc.
